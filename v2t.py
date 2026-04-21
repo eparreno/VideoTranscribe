@@ -20,6 +20,7 @@ except ModuleNotFoundError:
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(PROJECT_DIR, "assets")
+MODEL_CHOICES = ["tiny", "base", "small", "medium", "large"]
 YOUTUBE_HOSTS = {
     "youtube.com",
     "www.youtube.com",
@@ -55,6 +56,52 @@ def format_transcript(result, max_paragraph_chars=500):
         paragraphs.append(" ".join(current_parts))
 
     return "\n\n".join(paragraphs)
+
+
+def format_timestamp(seconds, decimal_marker):
+    total_milliseconds = max(0, int(round(seconds * 1000)))
+    hours, remainder = divmod(total_milliseconds, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    secs, milliseconds = divmod(remainder, 1000)
+    return (
+        f"{hours:02d}:{minutes:02d}:{secs:02d}{decimal_marker}{milliseconds:03d}"
+    )
+
+
+def format_subtitles(result, output_format):
+    segments = result.get("segments") or []
+    if not segments:
+        raise RuntimeError(
+            "Whisper did not return timestamped segments, so subtitle output could "
+            "not be generated."
+        )
+
+    blocks = []
+    cue_number = 1
+    decimal_marker = "," if output_format == "srt" else "."
+
+    for segment in segments:
+        text = segment.get("text", "").strip()
+        if not text:
+            continue
+
+        start = max(0.0, float(segment.get("start", 0.0)))
+        end = max(start, float(segment.get("end", start)))
+        timestamp_line = (
+            f"{format_timestamp(start, decimal_marker)} --> "
+            f"{format_timestamp(end, decimal_marker)}"
+        )
+
+        if output_format == "srt":
+            blocks.append(f"{cue_number}\n{timestamp_line}\n{text}")
+            cue_number += 1
+        else:
+            blocks.append(f"{timestamp_line}\n{text}")
+
+    if output_format == "vtt":
+        return "WEBVTT\n\n" + "\n\n".join(blocks) + "\n"
+
+    return "\n\n".join(blocks) + "\n"
 
 
 def format_duration(seconds):
@@ -164,6 +211,17 @@ def get_download_filename(url, response):
         filename = "downloaded_video.mp4"
 
     return os.path.basename(filename)
+
+
+def get_output_path(video_path, output_format, output_dir=None):
+    if output_dir:
+        output_directory = output_dir
+        os.makedirs(output_directory, exist_ok=True)
+    else:
+        output_directory = os.path.dirname(video_path) or "."
+
+    video_name = os.path.splitext(os.path.basename(video_path))[0]
+    return os.path.join(output_directory, f"{video_name}_transcript.{output_format}")
 
 
 def download_video(url):
@@ -329,10 +387,16 @@ def extract_audio(video_path, audio_path):
     return time.perf_counter() - started_at
 
 
-def transcribe_video(video_path, model_name, total_started_at=None):
+def transcribe_video(
+    video_path,
+    model_name,
+    language=None,
+    output_format="txt",
+    output_dir=None,
+    total_started_at=None,
+):
     fd, audio_path = tempfile.mkstemp(suffix=".wav")
     os.close(fd)
-    output_base = os.path.splitext(video_path)[0]
     if total_started_at is None:
         total_started_at = time.perf_counter()
 
@@ -347,6 +411,8 @@ def transcribe_video(video_path, model_name, total_started_at=None):
 
         print("Transcribing...")
         transcribe_options = {"verbose": False}
+        if language:
+            transcribe_options["language"] = language
         if str(model.device) == "cpu":
             transcribe_options["fp16"] = False
 
@@ -356,10 +422,14 @@ def transcribe_video(video_path, model_name, total_started_at=None):
         print(f"Transcription completed in {format_duration(transcription_elapsed)}")
 
         # 3. Save to file
-        output_file = f"{output_base}_transcript.txt"
-        transcript_text = format_transcript(result)
+        output_file = get_output_path(video_path, output_format, output_dir)
+        if output_format == "txt":
+            output_text = format_transcript(result)
+        else:
+            output_text = format_subtitles(result, output_format)
+
         with open(output_file, "w", encoding="utf-8") as f:
-            f.write(transcript_text)
+            f.write(output_text)
 
         total_elapsed = time.perf_counter() - total_started_at
         print(f"Transcription saved to: {output_file}")
@@ -388,9 +458,23 @@ def parse_args():
     )
     parser.add_argument(
         "--model",
-        choices=["small", "medium", "large"],
+        choices=MODEL_CHOICES,
         default="small",
         help="Whisper model to use (default: small)",
+    )
+    parser.add_argument(
+        "--language",
+        help="Optional language code for Whisper (default: auto-detect)",
+    )
+    parser.add_argument(
+        "--output-format",
+        choices=["txt", "srt", "vtt"],
+        default="txt",
+        help="Output format to write (default: txt)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        help="Optional directory for transcript output (default: next to the video)",
     )
     parser.add_argument(
         "--delete-download",
@@ -398,6 +482,7 @@ def parse_args():
         help="Delete downloaded URL videos after transcription finishes",
     )
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = parse_args()
@@ -411,6 +496,9 @@ if __name__ == "__main__":
         completed = transcribe_video(
             resolved_video_path,
             args.model,
+            language=args.language,
+            output_format=args.output_format,
+            output_dir=args.output_dir,
             total_started_at=run_started_at,
         )
     except FileNotFoundError as e:

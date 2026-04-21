@@ -20,6 +20,9 @@ For remote URL inputs, the script downloads the video into `assets/` first and t
 Current features:
 
 - Whisper model selection with `--model`
+- optional Whisper language override with `--language`
+- transcript output as `txt`, `srt`, or `vtt`
+- custom transcript destination with `--output-dir`
 - readable paragraph-based transcript formatting
 - download progress for remote files
 - extraction progress with `ffmpeg`
@@ -170,6 +173,13 @@ Select a Whisper model with `--model`:
 python v2t.py --model medium ~/Downloads/video.mp4
 ```
 
+You can optionally tell Whisper which language to expect instead of relying on
+auto-detection:
+
+```bash
+python v2t.py --language es ~/Downloads/video.mp4
+```
+
 You can also pass a direct video URL:
 
 ```bash
@@ -203,6 +213,24 @@ Combine options:
 python v2t.py --model large --delete-download "https://example.com/video.mp4"
 ```
 
+Write subtitles instead of plain text:
+
+```bash
+python v2t.py --output-format srt ~/Downloads/video.mp4
+```
+
+Write the transcript into a specific directory:
+
+```bash
+python v2t.py --output-dir transcripts ~/Downloads/video.mp4
+```
+
+Combine the new options:
+
+```bash
+python v2t.py --model base --language es --output-format vtt --output-dir transcripts ~/Downloads/video.mp4
+```
+
 CLI help:
 
 ```bash
@@ -220,12 +248,24 @@ python v2t.py --help
 
 ## Output
 
-The transcript is always created in the same directory as the video file being processed.
+By default, the transcript is created in the same directory as the video file
+being processed.
 
-- local file input: if the video is `/path/to/movie.mp4`, the transcript will be `/path/to/movie_transcript.txt`
-- remote URL input: the video is first downloaded into `assets/`, so both the downloaded video and the transcript are created in `assets/`
+- local file input: if the video is `/path/to/movie.mp4`, the default transcript will be `/path/to/movie_transcript.txt`
+- remote URL input: the video is first downloaded into `assets/`, so the default transcript is also created in `assets/`
+- if you pass `--output-dir`, the output file is created in that directory instead
 
-The output is formatted into readable paragraphs instead of a single text block.
+Available output formats:
+
+- `txt` creates a readable paragraph-based transcript
+- `srt` creates subtitle cues with timestamps
+- `vtt` creates WebVTT subtitle cues with timestamps
+
+Examples:
+
+- input: `movie.mp4` with default output -> `movie_transcript.txt`
+- input: `movie.mp4 --output-format srt` -> `movie_transcript.srt`
+- input: `movie.mp4 --output-format vtt --output-dir transcripts` -> `transcripts/movie_transcript.vtt`
 
 During execution, the script shows:
 
@@ -234,18 +274,12 @@ During execution, the script shows:
 - a transcription start/completion message from Whisper,
 - elapsed time for extraction, transcription, and total runtime.
 
-Examples:
-
-- input: `movie.mp4`
-- output: `movie_transcript.txt`
-- input: `assets/lecture.mp4`
-- output: `assets/lecture_transcript.txt`
-
 ## Notes
 
 - The first transcription may take longer because Whisper may download the selected model.
 - The default Whisper model is `small`.
-- Allowed model values are `small`, `medium`, and `large`.
+- Allowed model values are `tiny`, `base`, `small`, `medium`, and `large`.
+- If `--language` is omitted, Whisper uses automatic language detection.
 - Whisper runs locally on your machine. No transcript is sent to an external API.
 - YouTube URLs are supported automatically.
 - Non-YouTube remote URLs must point directly to downloadable video files over `http` or `https`.
@@ -287,4 +321,10 @@ If transcription seems slow, try a smaller model:
 
 ```bash
 python v2t.py --model small /path/to/video.mp4
+```
+
+If subtitle output is not what you want, switch back to plain text:
+
+```bash
+python v2t.py --output-format txt /path/to/video.mp4
 ```
