@@ -23,9 +23,9 @@ Current features:
 - readable paragraph-based transcript formatting
 - download progress for remote files
 - extraction progress with `ffmpeg`
-- transcription progress with Whisper
 - elapsed time reporting for extraction, transcription, and total runtime
 - optional cleanup of downloaded URL videos with `--delete-download`
+- fully local transcription with no external transcription API
 
 ## Requirements
 
@@ -40,6 +40,19 @@ Python dependencies are managed with `requirements.txt`:
 openai-whisper==20250625
 yt-dlp==2026.3.17
 ```
+
+Whisper models are downloaded on first use and cached locally. Approximate
+model sizes:
+
+| Model | Download size |
+| --- | --- |
+| `small` | ~460 MB |
+| `medium` | ~1.5 GB |
+| `large` | ~2.9 GB |
+
+By default, Whisper stores models in `~/.cache/whisper` on macOS and Linux.
+On Windows, the cache is typically under the current user's local application
+data directory.
 
 ## Local Setup
 
@@ -91,6 +104,16 @@ Ubuntu / Debian:
 sudo apt update
 sudo apt install ffmpeg
 ```
+
+Windows:
+
+Install FFmpeg using `winget`:
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+After installation, open a new terminal so the updated `PATH` is picked up.
 
 ### 6. Verify the setup
 
@@ -208,7 +231,7 @@ During execution, the script shows:
 
 - download progress for remote URL inputs,
 - extraction progress from `ffmpeg`,
-- a transcription progress bar from Whisper,
+- a transcription start/completion message from Whisper,
 - elapsed time for extraction, transcription, and total runtime.
 
 Examples:
@@ -223,12 +246,17 @@ Examples:
 - The first transcription may take longer because Whisper may download the selected model.
 - The default Whisper model is `small`.
 - Allowed model values are `small`, `medium`, and `large`.
+- Whisper runs locally on your machine. No transcript is sent to an external API.
 - YouTube URLs are supported automatically.
 - Non-YouTube remote URLs must point directly to downloadable video files over `http` or `https`.
 - Other video platform page URLs such as Vimeo are not supported.
 - Downloaded URL videos are kept by default.
 - Use `--delete-download` if you want the downloaded video removed after a successful transcription.
 - `ffmpeg` is a system dependency and is not installed through `requirements.txt`.
+
+## License
+
+This project is released under the MIT License. See `LICENSE` for details.
 
 ## Troubleshooting
 
