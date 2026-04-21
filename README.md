@@ -147,7 +147,7 @@ source .venv/bin/activate
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python videotranscribe.py /path/to/video.mp4
+python v2t.py /path/to/video.mp4
 ```
 
 ## Usage
@@ -155,25 +155,25 @@ python videotranscribe.py /path/to/video.mp4
 Run the script with a local video file path:
 
 ```bash
-python videotranscribe.py /path/to/video.mp4
+python v2t.py /path/to/video.mp4
 ```
 
 Example:
 
 ```bash
-python videotranscribe.py ~/Downloads/video.mp4
+python v2t.py ~/Downloads/video.mp4
 ```
 
 Select a Whisper model with `--model`:
 
 ```bash
-python videotranscribe.py --model medium ~/Downloads/video.mp4
+python v2t.py --model medium ~/Downloads/video.mp4
 ```
 
 You can also pass a direct video URL:
 
 ```bash
-python videotranscribe.py "https://example.com/video.mp4"
+python v2t.py "https://example.com/video.mp4"
 ```
 
 For URL inputs, the script downloads the file into the `assets/` folder first and then runs the same extraction and transcription flow.
@@ -186,7 +186,7 @@ The transcript is always written next to the video file being processed.
 You can also pass a YouTube URL with no extra flags:
 
 ```bash
-python videotranscribe.py "https://www.youtube.com/watch?v=VIDEO_ID"
+python v2t.py "https://www.youtube.com/watch?v=VIDEO_ID"
 ```
 
 The script detects YouTube URLs automatically and downloads them with `yt-dlp` before transcription.
@@ -194,19 +194,19 @@ The script detects YouTube URLs automatically and downloads them with `yt-dlp` b
 Delete the downloaded remote file after a successful run:
 
 ```bash
-python videotranscribe.py --delete-download "https://example.com/video.mp4"
+python v2t.py --delete-download "https://example.com/video.mp4"
 ```
 
 Combine options:
 
 ```bash
-python videotranscribe.py --model large --delete-download "https://example.com/video.mp4"
+python v2t.py --model large --delete-download "https://example.com/video.mp4"
 ```
 
 CLI help:
 
 ```bash
-python videotranscribe.py --help
+python v2t.py --help
 ```
 
 ## How Input Is Handled
@@ -286,5 +286,5 @@ If a YouTube URL fails, make sure `yt-dlp` is installed from `requirements.txt` 
 If transcription seems slow, try a smaller model:
 
 ```bash
-python videotranscribe.py --model small /path/to/video.mp4
+python v2t.py --model small /path/to/video.mp4
 ```
