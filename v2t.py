@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ except ModuleNotFoundError:
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(PROJECT_DIR, "assets")
+DOWNLOAD_TIMEOUT_SECONDS = 30
 MODEL_CHOICES = ["tiny", "base", "small", "medium", "large"]
 YOUTUBE_HOSTS = {
     "youtube.com",
@@ -186,6 +188,16 @@ def ensure_assets_dir():
     os.makedirs(ASSETS_DIR, exist_ok=True)
 
 
+def ensure_system_dependencies():
+    missing_tools = [tool for tool in ("ffmpeg", "ffprobe") if not shutil.which(tool)]
+    if missing_tools:
+        missing_list = ", ".join(missing_tools)
+        raise RuntimeError(
+            f"Missing system dependency: {missing_list}. Install ffmpeg and ensure "
+            "both ffmpeg and ffprobe are available in your PATH."
+        )
+
+
 def get_unique_path(path):
     if not os.path.exists(path):
         return path
@@ -229,7 +241,7 @@ def download_video(url):
     print(f"Downloading video from URL: {url}")
 
     started_at = time.perf_counter()
-    with urllib.request.urlopen(url) as response:
+    with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
         filename = get_download_filename(url, response)
         output_path = get_unique_path(os.path.join(ASSETS_DIR, filename))
         total_bytes = response.headers.get("Content-Length")
@@ -369,10 +381,17 @@ def extract_audio(video_path, audio_path):
     processed_seconds = 0.0
     for line in process.stdout:
         line = line.strip()
-        if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+        if line.startswith("out_time_us="):
             _, value = line.split("=", 1)
             try:
                 processed_seconds = float(value) / 1_000_000
+            except ValueError:
+                continue
+            print_progress("Extracting audio", processed_seconds, total_duration)
+        elif line.startswith("out_time_ms="):
+            _, value = line.split("=", 1)
+            try:
+                processed_seconds = float(value) / 1_000
             except ValueError:
                 continue
             print_progress("Extracting audio", processed_seconds, total_duration)
@@ -489,6 +508,7 @@ if __name__ == "__main__":
     downloaded_video_path = None
     completed = False
     try:
+        ensure_system_dependencies()
         run_started_at = time.perf_counter()
         resolved_video_path, was_downloaded = resolve_video_path(args.video_path)
         if was_downloaded:
@@ -509,6 +529,8 @@ if __name__ == "__main__":
         print(e)
     except RuntimeError as e:
         print(e)
+    except KeyboardInterrupt:
+        print("\nCancelled by user.")
     finally:
         if (
             completed

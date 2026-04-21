@@ -313,7 +313,13 @@ If `ffmpeg` is missing, install it first and retry the command.
 
 If `ffprobe` is missing, install `ffmpeg` again and ensure its tools are available in your `PATH`.
 
+The script now checks for `ffmpeg` and `ffprobe` before starting work, so a
+missing dependency should fail fast with a clear error message.
+
 If a non-YouTube URL does not download correctly, make sure it points directly to a video file and not to a generic web page.
+
+If a remote download times out, retry the command or download the file locally
+first and then pass the local path to the script.
 
 If a YouTube URL fails, make sure `yt-dlp` is installed from `requirements.txt` and try again.
 
