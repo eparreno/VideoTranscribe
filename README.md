@@ -5,7 +5,7 @@ Small Python script that:
 - receives either a local video file path, a direct video URL, or a YouTube URL,
 - extracts the audio with `ffmpeg`,
 - transcribes the audio with OpenAI Whisper,
-- writes the transcript to a `.txt` file next to the video.
+- writes the transcript or subtitles to an output file.
 
 ## What It Does
 
@@ -188,7 +188,7 @@ python v2t.py "https://example.com/video.mp4"
 
 For URL inputs, the script downloads the file into the `assets/` folder first and then runs the same extraction and transcription flow.
 
-The transcript is always written next to the video file being processed.
+By default, the transcript is written next to the video file being processed.
 
 - local file input: transcript is created next to that local file
 - remote URL input: the video is first downloaded into `assets/`, so the transcript is also created in `assets/`
