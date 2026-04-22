@@ -44,6 +44,12 @@ openai-whisper==20250625
 yt-dlp==2026.3.17
 ```
 
+Optional test dependencies are listed in `requirements-dev.txt`:
+
+```txt
+pytest==8.4.2
+```
+
 Whisper models are downloaded on first use and cached locally. Approximate
 model sizes:
 
@@ -89,6 +95,12 @@ Windows PowerShell:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Optional: install test dependencies too:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ### 5. Install ffmpeg
@@ -237,6 +249,12 @@ CLI help:
 python v2t.py --help
 ```
 
+Show the current script version:
+
+```bash
+python v2t.py --version
+```
+
 ## How Input Is Handled
 
 - If the URL host is a supported YouTube host such as `youtube.com` or `youtu.be`, it is treated as a YouTube URL and downloaded with `yt-dlp`.
@@ -333,4 +351,12 @@ If subtitle output is not what you want, switch back to plain text:
 
 ```bash
 python v2t.py --output-format txt /path/to/video.mp4
+```
+
+## Development
+
+Run the test suite with:
+
+```bash
+pytest
 ```

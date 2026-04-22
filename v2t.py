@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from typing import Any
 
 try:
     import whisper
@@ -19,6 +20,7 @@ except ModuleNotFoundError:
     sys.exit(1)
 
 
+VERSION = "0.1.0"
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(PROJECT_DIR, "assets")
 DOWNLOAD_TIMEOUT_SECONDS = 30
@@ -32,7 +34,8 @@ YOUTUBE_HOSTS = {
 }
 
 
-def format_transcript(result, max_paragraph_chars=500):
+def format_transcript(result: dict[str, Any], max_paragraph_chars: int = 500) -> str:
+    """Group Whisper segments into readable paragraphs."""
     segments = result.get("segments") or []
     if not segments:
         return result.get("text", "").strip()
@@ -60,7 +63,8 @@ def format_transcript(result, max_paragraph_chars=500):
     return "\n\n".join(paragraphs)
 
 
-def format_timestamp(seconds, decimal_marker):
+def format_timestamp(seconds: float, decimal_marker: str) -> str:
+    """Format seconds as an SRT or VTT timestamp."""
     total_milliseconds = max(0, int(round(seconds * 1000)))
     hours, remainder = divmod(total_milliseconds, 3_600_000)
     minutes, remainder = divmod(remainder, 60_000)
@@ -70,7 +74,8 @@ def format_timestamp(seconds, decimal_marker):
     )
 
 
-def format_subtitles(result, output_format):
+def format_subtitles(result: dict[str, Any], output_format: str) -> str:
+    """Render Whisper segments as SRT or VTT subtitle text."""
     segments = result.get("segments") or []
     if not segments:
         raise RuntimeError(
@@ -106,7 +111,8 @@ def format_subtitles(result, output_format):
     return "\n\n".join(blocks) + "\n"
 
 
-def format_duration(seconds):
+def format_duration(seconds: float) -> str:
+    """Format elapsed seconds for terminal output."""
     total_seconds = max(0, int(round(seconds)))
     hours, remainder = divmod(total_seconds, 3600)
     minutes, secs = divmod(remainder, 60)
@@ -115,7 +121,8 @@ def format_duration(seconds):
     return f"{minutes:02d}:{secs:02d}"
 
 
-def format_size(num_bytes):
+def format_size(num_bytes: int) -> str:
+    """Format a byte count using human-readable units."""
     units = ["B", "KB", "MB", "GB"]
     size = float(num_bytes)
     unit = units[0]
@@ -129,7 +136,8 @@ def format_size(num_bytes):
     return f"{size:.1f} {unit}"
 
 
-def get_media_duration(video_path):
+def get_media_duration(video_path: str) -> float | None:
+    """Return media duration in seconds using ffprobe when available."""
     command = [
         "ffprobe",
         "-v",
@@ -147,7 +155,12 @@ def get_media_duration(video_path):
         return None
 
 
-def print_progress(label, processed_seconds, total_seconds=None):
+def print_progress(
+    label: str,
+    processed_seconds: float,
+    total_seconds: float | None = None,
+) -> None:
+    """Print a single-line progress message for time-based work."""
     if total_seconds and total_seconds > 0:
         percent = min(100.0, processed_seconds / total_seconds * 100)
         message = (
@@ -160,7 +173,12 @@ def print_progress(label, processed_seconds, total_seconds=None):
     print(message, end="", flush=True)
 
 
-def print_download_progress(label, downloaded_bytes, total_bytes=None):
+def print_download_progress(
+    label: str,
+    downloaded_bytes: int,
+    total_bytes: int | None = None,
+) -> None:
+    """Print a single-line progress message for downloads."""
     if total_bytes and total_bytes > 0:
         percent = min(100.0, downloaded_bytes / total_bytes * 100)
         message = (
@@ -173,22 +191,26 @@ def print_download_progress(label, downloaded_bytes, total_bytes=None):
     print(message, end="", flush=True)
 
 
-def is_url(value):
+def is_url(value: str) -> bool:
+    """Return whether the provided string looks like an HTTP(S) URL."""
     parsed = urllib.parse.urlparse(value)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
-def is_youtube_url(value):
+def is_youtube_url(value: str) -> bool:
+    """Return whether the provided string points to a supported YouTube host."""
     parsed = urllib.parse.urlparse(value)
     hostname = (parsed.hostname or "").lower()
     return hostname in YOUTUBE_HOSTS
 
 
-def ensure_assets_dir():
+def ensure_assets_dir() -> None:
+    """Create the assets directory if it does not already exist."""
     os.makedirs(ASSETS_DIR, exist_ok=True)
 
 
-def ensure_system_dependencies():
+def ensure_system_dependencies() -> None:
+    """Fail fast when required ffmpeg binaries are missing."""
     missing_tools = [tool for tool in ("ffmpeg", "ffprobe") if not shutil.which(tool)]
     if missing_tools:
         missing_list = ", ".join(missing_tools)
@@ -198,7 +220,8 @@ def ensure_system_dependencies():
         )
 
 
-def get_unique_path(path):
+def get_unique_path(path: str) -> str:
+    """Return a non-conflicting path by appending a numeric suffix."""
     if not os.path.exists(path):
         return path
 
@@ -211,7 +234,8 @@ def get_unique_path(path):
         counter += 1
 
 
-def get_download_filename(url, response):
+def get_download_filename(url: str, response: Any) -> str:
+    """Choose a safe download filename from headers or the URL path."""
     header_filename = response.headers.get_filename()
     if header_filename:
         filename = header_filename
@@ -225,7 +249,12 @@ def get_download_filename(url, response):
     return os.path.basename(filename)
 
 
-def get_output_path(video_path, output_format, output_dir=None):
+def get_output_path(
+    video_path: str,
+    output_format: str,
+    output_dir: str | None = None,
+) -> str:
+    """Build the final transcript or subtitle output path."""
     if output_dir:
         output_directory = output_dir
         os.makedirs(output_directory, exist_ok=True)
@@ -236,7 +265,8 @@ def get_output_path(video_path, output_format, output_dir=None):
     return os.path.join(output_directory, f"{video_name}_transcript.{output_format}")
 
 
-def download_video(url):
+def download_video(url: str) -> str:
+    """Download a direct video URL into the assets directory."""
     ensure_assets_dir()
     print(f"Downloading video from URL: {url}")
 
@@ -264,7 +294,8 @@ def download_video(url):
     return output_path
 
 
-def download_youtube_video(url):
+def download_youtube_video(url: str) -> str:
+    """Download a YouTube video into the assets directory via yt-dlp."""
     ensure_assets_dir()
 
     try:
@@ -337,7 +368,8 @@ def download_youtube_video(url):
     return downloaded_path
 
 
-def resolve_video_path(input_value):
+def resolve_video_path(input_value: str) -> tuple[str, bool]:
+    """Resolve a CLI input into a local file path and download status."""
     if is_youtube_url(input_value):
         return download_youtube_video(input_value), True
 
@@ -350,7 +382,8 @@ def resolve_video_path(input_value):
     return input_value, False
 
 
-def extract_audio(video_path, audio_path):
+def extract_audio(video_path: str, audio_path: str) -> float:
+    """Extract WAV audio from a media file using ffmpeg."""
     total_duration = get_media_duration(video_path)
     command = [
         "ffmpeg",
@@ -407,13 +440,14 @@ def extract_audio(video_path, audio_path):
 
 
 def transcribe_video(
-    video_path,
-    model_name,
-    language=None,
-    output_format="txt",
-    output_dir=None,
-    total_started_at=None,
-):
+    video_path: str,
+    model_name: str,
+    language: str | None = None,
+    output_format: str = "txt",
+    output_dir: str | None = None,
+    total_started_at: float | None = None,
+) -> bool:
+    """Extract audio, run Whisper, and write the chosen output file."""
     fd, audio_path = tempfile.mkstemp(suffix=".wav")
     os.close(fd)
     if total_started_at is None:
@@ -464,7 +498,8 @@ def transcribe_video(
             os.remove(audio_path)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for the CLI."""
     parser = argparse.ArgumentParser(
         description=(
             "VideoTranscribe extracts audio from a video file and transcribes it "
@@ -474,6 +509,11 @@ def parse_args():
     parser.add_argument(
         "video_path",
         help="Path to a local video file, direct video URL, or YouTube URL",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}",
     )
     parser.add_argument(
         "--model",
