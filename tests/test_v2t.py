@@ -117,6 +117,22 @@ def test_get_output_path_uses_output_dir(tmp_path: Path) -> None:
     assert output_dir.exists()
 
 
+def test_resolve_youtube_download_path_prefers_hook_result() -> None:
+    info = {"filepath": "info.mp4"}
+
+    assert v2t.resolve_youtube_download_path("hook.mp4", info, "prepared.mp4") == "hook.mp4"
+
+
+def test_resolve_youtube_download_path_uses_fallbacks() -> None:
+    assert v2t.resolve_youtube_download_path(None, {"filepath": "info.mp4"}, None) == "info.mp4"
+    assert v2t.resolve_youtube_download_path(None, {}, "prepared.mp4") == "prepared.mp4"
+
+
+def test_resolve_youtube_download_path_requires_resolved_file() -> None:
+    with pytest.raises(RuntimeError, match="did not provide an output file path"):
+        v2t.resolve_youtube_download_path(None, {}, None)
+
+
 def test_format_subtitles_supports_srt_and_vtt() -> None:
     result = {"segments": [{"start": 0.0, "end": 1.25, "text": "Hello world."}]}
 
