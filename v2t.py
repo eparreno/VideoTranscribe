@@ -265,6 +265,21 @@ def get_output_path(
     return os.path.join(output_directory, f"{video_name}_transcript.{output_format}")
 
 
+def resolve_youtube_download_path(
+    downloaded_path: str | None,
+    info: dict[str, Any],
+    prepared_filename: str | None = None,
+) -> str:
+    """Resolve the final file path returned by yt-dlp or fail clearly."""
+    candidate = downloaded_path or info.get("filepath") or prepared_filename
+    if candidate:
+        return candidate
+
+    raise RuntimeError(
+        "YouTube download completed but yt-dlp did not provide an output file path."
+    )
+
+
 def download_video(url: str) -> str:
     """Download a direct video URL into the assets directory."""
     ensure_assets_dir()
@@ -356,8 +371,11 @@ def download_youtube_video(url: str) -> str:
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=True)
-            if not downloaded_path:
-                downloaded_path = info.get("filepath") or ydl.prepare_filename(info)
+            downloaded_path = resolve_youtube_download_path(
+                downloaded_path,
+                info,
+                ydl.prepare_filename(info),
+            )
     except yt_dlp.utils.DownloadError as e:
         raise RuntimeError(f"Error downloading YouTube video: {e}") from e
 
